@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">圖片秀</string>
+    <string name="key_word">關鍵字</string>
+    <string name="search">搜尋</string>
+</resources>
