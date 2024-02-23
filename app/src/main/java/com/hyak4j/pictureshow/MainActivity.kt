@@ -1,11 +1,59 @@
 package com.hyak4j.pictureshow
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.widget.ProgressBar
+import androidx.appcompat.app.AppCompatActivity
+import com.hyak4j.pictureshow.databinding.ActivityMainBinding
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
+    // Pexels API KEY
+    private val API_KEY = "PBemzrFY7A7tFbwS1QsPBmQghMMrJkxe1WkwUHBW7vEUbJamKZvLmSKA"
+
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var mProgressBar: ProgressBar
+
+    private val singleThreadExecutor = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        mProgressBar = binding.progressbar
+        mProgressBar.visibility = View.INVISIBLE
+
+        singleThreadExecutor.execute {
+            handler.post {
+                mProgressBar.visibility = View.VISIBLE
+            }
+            loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=15")
+            handler.post {
+                mProgressBar.visibility = View.INVISIBLE
+            }
+        }
+
+    }
+
+    private fun loadDataFromAPI(url: String) {
+        val urlObject = URL(url)
+        try {
+            val connection: HttpURLConnection = urlObject.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Authorization", API_KEY)
+
+            val inputStreamReader = InputStreamReader(connection.inputStream, "UTF-8")
+            val bufferedReader = BufferedReader(inputStreamReader)
+            val result = bufferedReader.readLine()
+            println(result)
+        }catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
