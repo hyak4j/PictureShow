@@ -7,11 +7,11 @@ import android.view.View
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import com.hyak4j.pictureshow.databinding.ActivityMainBinding
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     // Pexels API KEY
@@ -20,8 +20,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var mProgressBar: ProgressBar
 
-    private val singleThreadExecutor = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
+    private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         mProgressBar = binding.progressbar
         mProgressBar.visibility = View.INVISIBLE
 
-        singleThreadExecutor.execute {
+        Thread {
             handler.post {
                 mProgressBar.visibility = View.VISIBLE
             }
@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
             handler.post {
                 mProgressBar.visibility = View.INVISIBLE
             }
-        }
+        }.start()
 
     }
 
@@ -51,8 +51,23 @@ class MainActivity : AppCompatActivity() {
             val inputStreamReader = InputStreamReader(connection.inputStream, "UTF-8")
             val bufferedReader = BufferedReader(inputStreamReader)
             val result = bufferedReader.readLine()
-            println(result)
-        }catch (e: Exception) {
+            val response = JSONObject(result)
+            val photos = response.getJSONArray("photos")
+            for (i in 0 until photos.length()) {
+                val photo = photos.getJSONObject(i)
+                picturesFromAPI.add(
+                    PictureData(
+                        photo.getString("id"),
+                        photo.getString("photographer"),
+                        photo.getJSONObject("src").getString("medium"),
+                        null
+                    )
+                )
+            }
+            inputStreamReader.close()
+            bufferedReader.close()
+            connection.disconnect()
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
