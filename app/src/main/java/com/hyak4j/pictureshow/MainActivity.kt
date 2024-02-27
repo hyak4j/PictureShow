@@ -1,5 +1,6 @@
 package com.hyak4j.pictureshow
 
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,9 +10,12 @@ import androidx.appcompat.app.AppCompatActivity
 import com.hyak4j.pictureshow.databinding.ActivityMainBinding
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     // Pexels API KEY
@@ -22,6 +26,8 @@ class MainActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
+    private val newIndices: ArrayList<Int> = ArrayList()
+    private val cachedThreadPoolExecutor = Executors.newCachedThreadPool()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -34,6 +40,7 @@ class MainActivity : AppCompatActivity() {
                 mProgressBar.visibility = View.VISIBLE
             }
             loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=15")
+            loadImageFromAPI()
             handler.post {
                 mProgressBar.visibility = View.INVISIBLE
             }
@@ -63,6 +70,7 @@ class MainActivity : AppCompatActivity() {
                         null
                     )
                 )
+                newIndices.add(picturesFromAPI.size - 1)
             }
             inputStreamReader.close()
             bufferedReader.close()
@@ -70,5 +78,28 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun loadImageFromAPI() {
+        val latch = CountDownLatch(newIndices.size)
+        for (i in newIndices) {
+            // 從 medium路徑下載圖片
+            cachedThreadPoolExecutor.execute {
+                try {
+                    val inputStream: InputStream = URL(picturesFromAPI[i].medium).openStream()
+                    picturesFromAPI[i].realImage = BitmapFactory.decodeStream(inputStream)
+                    latch.countDown()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        try {
+            // 確保每個realImage都處理完後再往下做
+            latch.await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        newIndices.clear()
     }
 }
