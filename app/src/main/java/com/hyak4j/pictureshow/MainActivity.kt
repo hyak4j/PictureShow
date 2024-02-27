@@ -8,6 +8,8 @@ import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.RecyclerView.LayoutManager
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.hyak4j.pictureshow.databinding.ActivityMainBinding
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -30,6 +32,10 @@ class MainActivity : AppCompatActivity() {
     private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
     private val newIndices: ArrayList<Int> = ArrayList()
     private val cachedThreadPoolExecutor = Executors.newCachedThreadPool()
+
+    private lateinit var layoutManager: LayoutManager
+    private lateinit var adapter: PictureAdapter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -47,11 +53,14 @@ class MainActivity : AppCompatActivity() {
             loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=15")
             loadImageFromAPI()
             handler.post {
+                layoutManager = StaggeredGridLayoutManager(3, StaggeredGridLayoutManager.VERTICAL)
+                adapter = PictureAdapter(this, picturesFromAPI)
+                binding.recyclerview.layoutManager = layoutManager
+                binding.recyclerview.adapter = adapter
                 mProgressBar.visibility = View.INVISIBLE
                 mBtnSearch.isEnabled = true
             }
         }.start()
-
     }
 
     private fun loadDataFromAPI(url: String) {
