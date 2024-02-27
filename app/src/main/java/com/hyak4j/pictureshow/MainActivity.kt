@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.widget.Button
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import com.hyak4j.pictureshow.databinding.ActivityMainBinding
@@ -23,6 +24,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var mProgressBar: ProgressBar
+    private lateinit var mBtnSearch: Button
 
     private val handler = Handler(Looper.getMainLooper())
     private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
@@ -32,17 +34,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        mBtnSearch = binding.btnSearch
         mProgressBar = binding.progressbar
         mProgressBar.visibility = View.INVISIBLE
 
         Thread {
             handler.post {
+                // 禁止使用者按搜尋
+                mBtnSearch.isEnabled = false
                 mProgressBar.visibility = View.VISIBLE
             }
             loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=15")
             loadImageFromAPI()
             handler.post {
                 mProgressBar.visibility = View.INVISIBLE
+                mBtnSearch.isEnabled = true
             }
         }.start()
 
