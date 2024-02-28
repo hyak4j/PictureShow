@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private val recyclerViewBottomImageContainer = intArrayOf(0, 0, 0)
     private var page = 1 // 目前頁數
     private val per_page = 15 // 每頁張數
+    private var loadingNewImages = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,12 +138,13 @@ class MainActivity : AppCompatActivity() {
                 layoutManager.findLastVisibleItemPositions(recyclerViewBottomImageContainer)
             val itemCount = layoutManager.itemCount
 
-            if (lastVisibleItemPosition[0] == itemCount - 1 ||
-                lastVisibleItemPosition[1] == itemCount - 1 ||
-                lastVisibleItemPosition[2] == itemCount - 1
+            if (!loadingNewImages && (lastVisibleItemPosition[0] == itemCount - 1 ||
+                        lastVisibleItemPosition[1] == itemCount - 1 ||
+                        lastVisibleItemPosition[2] == itemCount - 1)
             ) {
                 Thread {
                     handler.post {
+                        loadingNewImages = true
                         mBtnSearch.isEnabled = false
                         mProgressBar.visibility = View.VISIBLE
                         Toast.makeText(context, R.string.download_new_image, Toast.LENGTH_LONG)
@@ -154,6 +156,7 @@ class MainActivity : AppCompatActivity() {
 
                     loadImageFromAPI()
                     handler.post {
+                        loadingNewImages = false
                         mBtnSearch.isEnabled = true
                         mProgressBar.visibility = View.INVISIBLE
                         adapter.notifyDataSetChanged()
