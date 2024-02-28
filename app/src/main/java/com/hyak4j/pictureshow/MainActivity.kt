@@ -1,5 +1,6 @@
 package com.hyak4j.pictureshow
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
@@ -7,7 +8,9 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.LayoutManager
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.hyak4j.pictureshow.databinding.ActivityMainBinding
@@ -27,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var mProgressBar: ProgressBar
     private lateinit var mBtnSearch: Button
+    private lateinit var mRecyclerView: RecyclerView
 
     private val handler = Handler(Looper.getMainLooper())
     private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
@@ -35,11 +39,15 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var layoutManager: LayoutManager
     private lateinit var adapter: PictureAdapter
+    private val recyclerViewBottomImageContainer = intArrayOf(0, 0, 0)
+    private var page = 1 // 目前頁數
+    private val per_page = 15 // 每頁張數
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        mRecyclerView = binding.recyclerview
         mBtnSearch = binding.btnSearch
         mProgressBar = binding.progressbar
         mProgressBar.visibility = View.INVISIBLE
@@ -50,17 +58,19 @@ class MainActivity : AppCompatActivity() {
                 mBtnSearch.isEnabled = false
                 mProgressBar.visibility = View.VISIBLE
             }
-            loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=15")
+            loadDataFromAPI("https://api.pexels.com/v1/curated?page=1&per_page=$per_page")
             loadImageFromAPI()
             handler.post {
                 layoutManager = StaggeredGridLayoutManager(3, StaggeredGridLayoutManager.VERTICAL)
                 adapter = PictureAdapter(this, picturesFromAPI)
-                binding.recyclerview.layoutManager = layoutManager
-                binding.recyclerview.adapter = adapter
+                mRecyclerView.layoutManager = layoutManager
+                mRecyclerView.adapter = adapter
                 mProgressBar.visibility = View.INVISIBLE
                 mBtnSearch.isEnabled = true
             }
         }.start()
+
+        mRecyclerView.addOnScrollListener(ScrollListener(this))
     }
 
     private fun loadDataFromAPI(url: String) {
@@ -116,5 +126,40 @@ class MainActivity : AppCompatActivity() {
             e.printStackTrace()
         }
         newIndices.clear()
+    }
+
+    inner class ScrollListener(val context: Context) : RecyclerView.OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            super.onScrolled(recyclerView, dx, dy)
+            // 確認滑到最下面
+            val layoutManager = recyclerView.layoutManager as StaggeredGridLayoutManager
+            val lastVisibleItemPosition =
+                layoutManager.findLastVisibleItemPositions(recyclerViewBottomImageContainer)
+            val itemCount = layoutManager.itemCount
+
+            if (lastVisibleItemPosition[0] == itemCount - 1 ||
+                lastVisibleItemPosition[1] == itemCount - 1 ||
+                lastVisibleItemPosition[2] == itemCount - 1
+            ) {
+                Thread {
+                    handler.post {
+                        mBtnSearch.isEnabled = false
+                        mProgressBar.visibility = View.VISIBLE
+                        Toast.makeText(context, R.string.download_new_image, Toast.LENGTH_LONG)
+                            .show()
+                    }
+                    page += 1
+
+                    loadDataFromAPI("https://api.pexels.com/v1/curated?page=$page&per_page=$per_page")
+
+                    loadImageFromAPI()
+                    handler.post {
+                        mBtnSearch.isEnabled = true
+                        mProgressBar.visibility = View.INVISIBLE
+                        adapter.notifyDataSetChanged()
+                    }
+                }.start()
+            }
+        }
     }
 }
