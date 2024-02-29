@@ -6,7 +6,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mProgressBar: ProgressBar
     private lateinit var mBtnSearch: Button
     private lateinit var mRecyclerView: RecyclerView
+    private lateinit var mEdtSearch: EditText
 
     private val handler = Handler(Looper.getMainLooper())
     private var picturesFromAPI: ArrayList<PictureData> = ArrayList()
@@ -40,8 +43,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutManager: LayoutManager
     private lateinit var adapter: PictureAdapter
     private val recyclerViewBottomImageContainer = intArrayOf(0, 0, 0)
+
     private var page = 1 // 目前頁數
     private val per_page = 15 // 每頁張數
+    private var currentSearchingText = "" // 搜尋關鍵字
     private var loadingNewImages = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         mBtnSearch = binding.btnSearch
         mProgressBar = binding.progressbar
         mProgressBar.visibility = View.INVISIBLE
+        mEdtSearch = binding.edtSearch
 
         Thread {
             handler.post {
@@ -70,6 +76,37 @@ class MainActivity : AppCompatActivity() {
                 mBtnSearch.isEnabled = true
             }
         }.start()
+
+        mBtnSearch.setOnClickListener {
+            Thread {
+                handler.post {
+                    loadingNewImages = true
+                    mBtnSearch.isEnabled = false
+                    mProgressBar.visibility = View.VISIBLE
+                    picturesFromAPI.clear()
+                    adapter.notifyDataSetChanged()
+                    // 關閉軟鍵盤
+                    val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    inputMethodManager.hideSoftInputFromWindow(mEdtSearch.windowToken, 0)
+                }
+
+                currentSearchingText = mEdtSearch.text.toString()
+                page = 1
+                if (currentSearchingText == "") {
+                    loadDataFromAPI("https://api.pexels.com/v1/curated?page=$page&per_page=$per_page")
+                } else {
+                    loadDataFromAPI("https://api.pexels.com/v1/search?query=$currentSearchingText&page=$page&per_page=$per_page")
+                }
+                loadImageFromAPI()
+
+                handler.post {
+                    mBtnSearch.isEnabled = true
+                    mProgressBar.visibility = View.INVISIBLE
+                    adapter.notifyDataSetChanged()
+                    loadingNewImages = false
+                }
+            }.start()
+        }
 
         mRecyclerView.addOnScrollListener(ScrollListener(this))
     }
@@ -151,15 +188,17 @@ class MainActivity : AppCompatActivity() {
                             .show()
                     }
                     page += 1
-
-                    loadDataFromAPI("https://api.pexels.com/v1/curated?page=$page&per_page=$per_page")
-
+                    if (currentSearchingText == "") {
+                        loadDataFromAPI("https://api.pexels.com/v1/curated?page=$page&per_page=$per_page")
+                    } else {
+                        loadDataFromAPI("https://api.pexels.com/v1/search?query=$currentSearchingText&page=$page&per_page=$per_page")
+                    }
                     loadImageFromAPI()
                     handler.post {
-                        loadingNewImages = false
                         mBtnSearch.isEnabled = true
                         mProgressBar.visibility = View.INVISIBLE
                         adapter.notifyDataSetChanged()
+                        loadingNewImages = false
                     }
                 }.start()
             }
